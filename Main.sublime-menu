@@ -20,6 +20,14 @@
                                 "args": {"file": "${packages}/sublimetext_python_checker/sublimetext_python_checker.sublime-settings"},
                                 "caption": "Settings – Default"
                             },
+                            {
+                                "command": "toggle_setting",
+                                "args": {
+                                    "setting": "python_checking"
+                                },
+                                "checkbox": true,
+                                "caption": "Enabled (current buffer)"
+                            },
                             { "caption": "-" }
                         ]
                     }

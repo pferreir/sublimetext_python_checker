@@ -1,4 +1,3 @@
-import os
 import re
 import signal
 from subprocess import Popen, PIPE
@@ -6,63 +5,54 @@ from subprocess import Popen, PIPE
 import sublime
 import sublime_plugin
 
-global buffer_state
 global view_messages
-global check_enabled
+global enabled_by_default
 
 view_messages = {}
 settings = sublime.load_settings("sublimetext_python_checker.sublime-settings")
-check_enabled = settings.get('check_enabled', True)
-buffer_state = {}
+enabled_by_default = settings.get('enabled_by_default', True)
 
 
 def set_status(view, state):
-    buffer_state[view.id()] = state
     view.set_status('pthon_checker_status',
                     "pylint/pyflakes {0}".format('on' if state else 'off'))
-
-
-class PythonCheckerCommand(sublime_plugin.TextCommand):
-
-    def run(self, edit):
-        global buffer_state
-        state = not buffer_state.get(self.view.id(), False)
-
-        if state:
-            check_and_mark(self.view)
-        else:
-            self.view.erase_regions('python_checker_underlines')
-            self.view.erase_regions('python_checker_outlines')
-            self.view.erase_status("python_checker")
-
-        set_status(self.view, state)
 
 
 class PythonCheckerListener(sublime_plugin.EventListener):
 
     def is_active(self, view):
-        global buffer_state
-        return buffer_state.get(view.id(), False)
+        return view.settings().get('python_checking')
+
+    def is_python_buffer(self, view):
+        return 'python' in view.settings().get('syntax').lower()
+
+    def on_toggle(self, view):
+        state = view.settings().get('python_checking')
+
+        set_status(view, state)
+
+        if state:
+            check_and_mark(view)
+        else:
+            view.erase_regions('python_checker_underlines')
+            view.erase_regions('python_checker_outlines')
+            view.erase_status("python_checker")
 
     def on_load(self, view):
-        global check_enabled
+        global enabled_by_default
+
+        if not self.is_python_buffer(view):
+            return
 
         # enable/disable by default according to config
-        set_status(view, check_enabled)
-        if check_enabled:
-            check_and_mark(view)
+        view.settings().set('python_checking', enabled_by_default)
+        set_status(view, enabled_by_default)
+        view.settings().add_on_change('python_checking',
+                                      lambda: self.on_toggle(view))
 
-    def on_close(self, view):
-        global buffer_state
-        del buffer_state[view.id()]
-
-    def on_activated(self, view):
-        if self.is_active(view):
+        if enabled_by_default:
             signal.signal(signal.SIGALRM, lambda s, f: check_and_mark(view))
             signal.alarm(1)
-
-    def on_deactivated(self, view):
-        signal.alarm(0)
 
     def on_post_save(self, view):
         if self.is_active(view):

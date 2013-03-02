@@ -39,7 +39,22 @@ per project, ...):
 
 These will have precedence over plugin-level settings.
 
+You can enable/disable checking for a particular view by going to Preferences -> Package Settings -> sublime_python_checker and checking the `Enabled` option. If you want, you can bind a key to this action: Preferences -> "Key Bindings (User)". E.g.:
+
+```
+[
+ { "keys": ["ctrl+shift+l"], "command": "toggle_setting",
+   "args": {"setting": "python_checking"}}
+]
+```
+
 Restart SublimeText 2 and open some *.py file to see check results. You can see additional information in python console of your editor (go View -> Show Console).
+
+## Configuration Options
+
+  * `python_syntax_checkers` - list of lists - each sub-list is a `[path, [options]]` list pair
+  * `highlight_color` - string - theme style that should be used to highlight problems
+  * `enabled_by_default` - boolean - whether or not checking should be active by default when a file is opened
 
 ## Why not sublimelint
 
