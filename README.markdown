@@ -10,14 +10,20 @@ Go to your Packages dir (Sublime Text 2 -> Preferences -> Browse Packages). Clon
 
     git clone git://github.com/vorushin/sublimetext_python_checker.git
 
-Go to sublimetext_python_checker/ and create file local_settings.py with list of your preferred checkers:
+From SublimeText 2 -> Preferences -> Package Settings, select `sublime_python_checker`. Add something like this:
 
-<pre>
-    CHECKERS = [('/Users/vorushin/.virtualenvs/checkers/bin/pep8', []),
-                ('/Users/vorushin/.virtualenvs/checkers/bin/pyflakes', [])]
-</pre>
+```
+{
+    "highlight_color": "keyword",
+    "python_syntax_checkers": [
+            ["/usr/bin/pep8", []],
+            ["/usr/bin/pyflakes", []]
+    ]
+}
+```
+You should replace `keyword` with a theme style of your preference.
 
-First parameter is path to command, second - optional list of arguments. If you want to disable line length checking in pep8, set second parameter to ['--ignore=E501'].
+The first parameter in a `python_syntax_checkers` entry is the path to command, the second one an optional list of arguments. E.g. if you want to disable line length checking in pep8, you should set the second parameter to ['--ignore=E501'].
 
 You can also set syntax checkers using sublimetext settings (per file, global,
 per project, ...):
@@ -30,8 +36,8 @@ per project, ...):
         ]
     }
 </pre>
-Both "CHECKERS local_settings" and sublime text settings will be used,
-but sublime text settings are prefered. (using syntax checker binary name)
+
+These will have precedence over plugin-level settings.
 
 Restart SublimeText 2 and open some *.py file to see check results. You can see additional information in python console of your editor (go View -> Show Console).
 

@@ -6,51 +6,19 @@ from subprocess import Popen, PIPE
 import sublime
 import sublime_plugin
 
-try:
-    from local_settings import CHECKERS
-except ImportError as e:
-    print '''
-Please create file local_settings.py in the same directory with
-python_checker.py. Add to local_settings.py list of your checkers.
-
-Example:
-
-CHECKERS = [('/Users/vorushin/.virtualenvs/checkers/bin/pep8', []),
-            ('/Users/vorushin/.virtualenvs/checkers/bin/pyflakes', [])]
-
-First parameter is path to command, second - optional list of arguments.
-If you want to disable line length checking in pep8, set second parameter
-to ['--ignore=E501'].
-
-You can also insert checkers using sublime settings.
-
-For example in your project settings, add:
-    "settings":
-    {
-        "python_syntax_checkers":
-        [
-            ["/usr/bin/pep8", ["--ignore=E501,E128,E221"] ],
-            ["/usr/bin/pyflakes", [] ]
-        ]
-    }
-'''
-
-
-global view_messages
-view_messages = {}
-
-settings = sublime.load_settings("sublimetext_python_checker.sublime-settings")
-
-global check_enabled
-check_enabled = settings.get('check_enabled', True)
-
 global buffer_state
+global view_messages
+global check_enabled
+
+view_messages = {}
+settings = sublime.load_settings("sublimetext_python_checker.sublime-settings")
+check_enabled = settings.get('check_enabled', True)
 buffer_state = {}
 
 
 def set_status(view, state):
     buffer_state[view.id()] = state
-    view.set_status('python_checker_status',
+    view.set_status('pthon_checker_status',
                     "pylint/pyflakes {0}".format('on' if state else 'off'))
 
 
@@ -120,14 +88,8 @@ def check_and_mark(view):
     if not view.file_name():  # we check files (not buffers)
         return
 
-    checkers = view_settings.get('python_syntax_checkers', [])
-
-    # Append "local_settings.CHECKERS" to checkers from settings
-    if 'CHECKERS' in globals():
-        checkers_basenames = [
-            os.path.basename(checker[0]) for checker in checkers]
-        checkers.extend([checker for checker in CHECKERS
-                         if os.path.basename(checker[0]) not in checkers_basenames])
+    checkers = view_settings.get('python_syntax_checkers',
+        settings.get('python_syntax_checkers', {}))
 
     messages = []
     for checker, args in checkers:
