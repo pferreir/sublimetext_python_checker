@@ -39,48 +39,102 @@ For example in your project settings, add:
 global view_messages
 view_messages = {}
 
+settings = sublime.load_settings("sublimetext_python_checker.sublime-settings")
 
-class PythonCheckerCommand(sublime_plugin.EventListener):
+global check_enabled
+check_enabled = settings.get('check_enabled', True)
+
+global buffer_state
+buffer_state = {}
+
+
+def set_status(view, state):
+    buffer_state[view.id()] = state
+    view.set_status('python_checker_status',
+                    "pylint/pyflakes {0}".format('on' if state else 'off'))
+
+
+class PythonCheckerCommand(sublime_plugin.TextCommand):
+
+    def run(self, edit):
+        global buffer_state
+        state = not buffer_state.get(self.view.id(), False)
+
+        if state:
+            check_and_mark(self.view)
+        else:
+            self.view.erase_regions('python_checker_underlines')
+            self.view.erase_regions('python_checker_outlines')
+            self.view.erase_status("python_checker")
+
+        set_status(self.view, state)
+
+
+class PythonCheckerListener(sublime_plugin.EventListener):
+
+    def is_active(self, view):
+        global buffer_state
+        return buffer_state.get(view.id(), False)
+
+    def on_load(self, view):
+        global check_enabled
+
+        # enable/disable by default according to config
+        set_status(view, check_enabled)
+        if check_enabled:
+            check_and_mark(view)
+
+    def on_close(self, view):
+        global buffer_state
+        del buffer_state[view.id()]
+
     def on_activated(self, view):
-        signal.signal(signal.SIGALRM, lambda s, f: check_and_mark(view))
-        signal.alarm(1)
+        if self.is_active(view):
+            signal.signal(signal.SIGALRM, lambda s, f: check_and_mark(view))
+            signal.alarm(1)
 
     def on_deactivated(self, view):
         signal.alarm(0)
 
     def on_post_save(self, view):
-        check_and_mark(view)
+        if self.is_active(view):
+            check_and_mark(view)
 
     def on_selection_modified(self, view):
         global view_messages
-        lineno = view.rowcol(view.sel()[0].end())[0]
-        if view.id() in view_messages and lineno in view_messages[view.id()]:
-            view.set_status('python_checker', view_messages[view.id()][lineno])
-        else:
-            view.erase_status('python_checker')
+
+        if self.is_active(view):
+            lineno = view.rowcol(view.sel()[0].end())[0]
+            if view.id() in view_messages and lineno in view_messages[view.id()]:
+                view.set_status('python_checker', view_messages[view.id()][lineno])
+            else:
+                view.erase_status('python_checker')
 
 
 def check_and_mark(view):
-    if not 'python' in view.settings().get('syntax').lower():
+
+    view_settings = view.settings()
+
+    if not 'python' in view_settings.get('syntax').lower():
         return
     if not view.file_name():  # we check files (not buffers)
         return
 
-    checkers = view.settings().get('python_syntax_checkers', [])
+    checkers = view_settings.get('python_syntax_checkers', [])
 
     # Append "local_settings.CHECKERS" to checkers from settings
     if 'CHECKERS' in globals():
         checkers_basenames = [
             os.path.basename(checker[0]) for checker in checkers]
         checkers.extend([checker for checker in CHECKERS
-            if os.path.basename(checker[0]) not in checkers_basenames])
+                         if os.path.basename(checker[0]) not in checkers_basenames])
 
     messages = []
     for checker, args in checkers:
         checker_messages = []
         try:
             p = Popen([checker, view.file_name()] + args, stdout=PIPE,
-                stderr=PIPE)
+                      stderr=PIPE)
             stdout, stderr = p.communicate(None)
             checker_messages += parse_messages(stdout)
             checker_messages += parse_messages(stderr)
@@ -96,9 +150,8 @@ def check_and_mark(view):
                 for m in messages]
     view.erase_regions('python_checker_outlines')
     view.add_regions('python_checker_outlines',
-        outlines,
-        'keyword',
-        sublime.DRAW_EMPTY | sublime.DRAW_OUTLINED)
+                     outlines,
+                     settings.get('highlight_color', 'keyword'))
 
     underlines = []
     for m in messages:
@@ -108,9 +161,8 @@ def check_and_mark(view):
 
     view.erase_regions('python_checker_underlines')
     view.add_regions('python_checker_underlines',
-        underlines,
-        'keyword',
-        sublime.DRAW_EMPTY_AS_OVERWRITE | sublime.DRAW_OUTLINED)
+                     underlines,
+                     settings.get('highlight_color', 'keyword'))
 
     line_messages = {}
     for m in (m for m in messages if m['text']):
