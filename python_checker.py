@@ -15,7 +15,7 @@ enabled_by_default = settings.get('enabled_by_default', True)
 
 def set_status(view, state):
     view.set_status('pthon_checker_status',
-                    "pylint/pyflakes {0}".format('on' if state else 'off'))
+                    "pep8/pyflakes {0}".format('on' if state else 'off'))
 
 
 class PythonCheckerListener(sublime_plugin.EventListener):
